@@ -376,38 +376,38 @@ elif menu == "📊 Dasbor Laporan":
                     # ========================================================
                     # BAGIAN 1: RINGKASAN TOTAL HARIAN
                     # ========================================================
-                    st.subheader("📝 Ringkasan Harian (Sesuai Batas Sesi Ruang)")
-                    
-                    kursi_terpakai_harian = df_detail.groupby('ruang').size().reset_index(name='Kursi Terpakai')
-                    
-                    # Pengalian kapasitas berdasarkan Batas Sesi MASING-MASING ruang (2 atau 5)
-                    ruang_sekolah_ini['Total Kapasitas Harian'] = pd.to_numeric(ruang_sekolah_ini['kapasitas'], errors='coerce').fillna(0) * ruang_sekolah_ini['Batas Sesi']
-                    
-                    rekap_ruang = pd.merge(ruang_sekolah_ini[['Ruang', 'nama_ruang', 'Total Kapasitas Harian']], kursi_terpakai_harian, left_on='Ruang', right_on='ruang', how='left')
-                    rekap_ruang['Kursi Terpakai'] = rekap_ruang['Kursi Terpakai'].fillna(0).astype(int)
-                    rekap_ruang['Sisa Kursi'] = rekap_ruang['Total Kapasitas Harian'] - rekap_ruang['Kursi Terpakai']
-                    
-                    rekap_ruang['Kuota Terisi / Kapasitas Harian'] = rekap_ruang['Kursi Terpakai'].astype(str) + " / " + rekap_ruang['Total Kapasitas Harian'].astype(int).astype(str)
-                    
-                    rekap_ruang['Status Harian'] = rekap_ruang.apply(
-                        lambda x: "🔴 Penuh" if x['Sisa Kursi'] <= 0 else ("🟡 Cukup" if x['Kursi Terpakai'] > 0 else "🟢 Kosong"), axis=1
-                    )
-                    
-                    tabel_harian = rekap_ruang[['Ruang', 'nama_ruang', 'Kuota Terisi / Kapasitas Harian', 'Sisa Kursi', 'Status Harian']].copy()
-                    tabel_harian.rename(columns={'Ruang': 'Nomor Ruang', 'nama_ruang': 'Nama Lokasi'}, inplace=True)
-                    
-                    def highlight_status_harian(row):
-                        status = row['Status Harian']
-                        color = 'red' if status == '🔴 Penuh' else ('green' if status == '🟢 Kosong' else 'orange')
-                        return ['' if col != 'Status Harian' else f'color: {color};' for col in row.index]
-                    
-                    st.dataframe(tabel_harian.style.apply(highlight_status_harian, axis=1), use_container_width=True, hide_index=True)
-                    
-                    col_a, col_b, col_c = st.columns(3)
-                    total_kapasitas_harian = ruang_sekolah_ini['Total Kapasitas Harian'].sum()
-                    col_a.metric("Total Kapasitas Harian", int(total_kapasitas_harian))
-                    col_b.metric("Total Kursi Terpakai Harian", rekap_ruang['Kursi Terpakai'].sum())
-                    col_c.metric("Total Sisa Kursi Harian", rekap_ruang['Sisa Kursi'].sum())
+                    with st.expander("👀 Klik di sini untuk melihat Ringkasan Harian (Kapasitas Total)"):
+                        
+                        kursi_terpakai_harian = df_detail.groupby('ruang').size().reset_index(name='Kursi Terpakai')
+                        
+                        # Pengalian kapasitas berdasarkan Batas Sesi MASING-MASING ruang (2 atau 5)
+                        ruang_sekolah_ini['Total Kapasitas Harian'] = pd.to_numeric(ruang_sekolah_ini['kapasitas'], errors='coerce').fillna(0) * ruang_sekolah_ini['Batas Sesi']
+                        
+                        rekap_ruang = pd.merge(ruang_sekolah_ini[['Ruang', 'nama_ruang', 'Total Kapasitas Harian']], kursi_terpakai_harian, left_on='Ruang', right_on='ruang', how='left')
+                        rekap_ruang['Kursi Terpakai'] = rekap_ruang['Kursi Terpakai'].fillna(0).astype(int)
+                        rekap_ruang['Sisa Kursi'] = rekap_ruang['Total Kapasitas Harian'] - rekap_ruang['Kursi Terpakai']
+                        
+                        rekap_ruang['Kuota Terisi / Kapasitas Harian'] = rekap_ruang['Kursi Terpakai'].astype(str) + " / " + rekap_ruang['Total Kapasitas Harian'].astype(int).astype(str)
+                        
+                        rekap_ruang['Status Harian'] = rekap_ruang.apply(
+                            lambda x: "🔴 Penuh" if x['Sisa Kursi'] <= 0 else ("🟡 Cukup" if x['Kursi Terpakai'] > 0 else "🟢 Kosong"), axis=1
+                        )
+                        
+                        tabel_harian = rekap_ruang[['Ruang', 'nama_ruang', 'Kuota Terisi / Kapasitas Harian', 'Sisa Kursi', 'Status Harian']].copy()
+                        tabel_harian.rename(columns={'Ruang': 'Nomor Ruang', 'nama_ruang': 'Nama Lokasi'}, inplace=True)
+                        
+                        def highlight_status_harian(row):
+                            status = row['Status Harian']
+                            color = 'red' if status == '🔴 Penuh' else ('green' if status == '🟢 Kosong' else 'orange')
+                            return ['' if col != 'Status Harian' else f'color: {color};' for col in row.index]
+                        
+                        st.dataframe(tabel_harian.style.apply(highlight_status_harian, axis=1), use_container_width=True, hide_index=True)
+                        
+                        col_a, col_b, col_c = st.columns(3)
+                        total_kapasitas_harian = ruang_sekolah_ini['Total Kapasitas Harian'].sum()
+                        col_a.metric("Total Kapasitas Harian", int(total_kapasitas_harian))
+                        col_b.metric("Total Kursi Terpakai Harian", rekap_ruang['Kursi Terpakai'].sum())
+                        col_c.metric("Total Sisa Kursi Harian", rekap_ruang['Sisa Kursi'].sum())
                     
                     st.divider()
                     
