@@ -395,7 +395,7 @@ elif menu == "📊 Dasbor Laporan":
                                 jumlah_kolom_tampil = 2 # Jika belum ada peserta daftar
                                 
                             # Jaga-jaga jika ada salah input data di sesi 3/4/5
-                            max_sesi_aktual = int(df_detail['kode_sesi'].astype(int).max()) if not df_detail.empty else 0
+                            max_sesi_aktual = int(df_detail['kode_sesi'].astype(float).astype(int).max()) if not df_detail.empty else 0
                             if max_sesi_aktual > jumlah_kolom_tampil:
                                 jumlah_kolom_tampil = max_sesi_aktual
 
@@ -447,8 +447,10 @@ elif menu == "📊 Dasbor Laporan":
                     
                     # 1. Menghitung jumlah terisi per ruang dan per sesi menggunakan crosstab
                     if not df_detail.empty:
-                        df_detail['kode_sesi_str'] = df_detail['kode_sesi'].astype(str)
-                        pivot_sesi = pd.crosstab(df_detail['ruang'], df_detail['kode_sesi_str'])
+                        df_detail_clean = df_detail.copy()
+                        # Bersihkan desimal (.0) jika terbaca float dari excel, dan hapus spasi ekstra
+                        df_detail_clean['kode_sesi_str'] = df_detail_clean['kode_sesi'].astype(str).str.split('.').str[0].str.strip()
+                        pivot_sesi = pd.crosstab(df_detail_clean['ruang'], df_detail_clean['kode_sesi_str'])
                     else:
                         pivot_sesi = pd.DataFrame(index=ruang_sekolah_ini['Ruang'])
                     
