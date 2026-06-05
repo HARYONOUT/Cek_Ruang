@@ -102,41 +102,69 @@ if menu == "⚙️ Pengaturan Data":
     
     f_peserta = st.file_uploader("Unggah File Peserta (Bisa pilih satu atau banyak file sekaligus)", type=['csv','xls','xlsx'], accept_multiple_files=True, key='f_pes')
     
-    if f_peserta and st.button("💾 Simpan / Update Data Peserta Sekolah"):
-        success_count = 0
-        with st.spinner("Memproses dan memperbarui data peserta ke database..."):
+    col_pes_1, col_pes_2 = st.columns([3, 1])
+    
+    with col_pes_1:
+        if f_peserta and st.button("💾 Simpan / Update Data Peserta Sekolah"):
+            success_count = 0
+            with st.spinner("Memproses dan memperbarui data peserta ke database..."):
+                conn = get_conn()
+                c = conn.cursor()
+                
+                for file in f_peserta:
+                    df_p = load_file(file)
+                    if df_p is not None and 'kode_tuo' in df_p.columns and 'ruang' in df_p.columns:
+                        # Bersihkan kode agar presisi
+                        df_p['kode_tuo'] = df_p['kode_tuo'].astype(str).str.split('.').str[0]
+                        df_p['ruang'] = df_p['ruang'].astype(str).str.split('.').str[0]
+                        
+                        # Bersihkan kolom "Unnamed" yang sering muncul dari file Excel/CSV
+                        df_p = df_p.loc[:, ~df_p.columns.str.contains('^Unnamed')]
+                        
+                        # Cek kolom di database untuk mencegah error "DatabaseError: Execution failed" (Mismatched columns)
+                        c.execute("PRAGMA table_info(data_peserta)")
+                        db_cols = [col[1] for col in c.fetchall()]
+                        
+                        if db_cols: # Jika tabel sudah terbentuk sebelumnya
+                            # Sinkronisasi: hanya ambil kolom yang ada di database
+                            valid_cols = [col for col in df_p.columns if col in db_cols]
+                            df_p = df_p[valid_cols]
+                        
+                        # Ambil daftar kode TUO unik di dalam file yang sedang diunggah
+                        if 'kode_tuo' in df_p.columns:
+                            kodes_tuo = df_p['kode_tuo'].unique()
+                            
+                            # Hapus data LAMA untuk kode_tuo tersebut di database (Mekanisme Replace/Update Spesifik)
+                            try:
+                                for k in kodes_tuo:
+                                    c.execute("DELETE FROM data_peserta WHERE kode_tuo = ?", (str(k),))
+                                conn.commit()
+                            except sqlite3.OperationalError:
+                                # Jika tabel belum ada di awal penggunaan, abaikan error penghapusan
+                                pass 
+                            
+                            # Simpan data BARU (Hanya menumpuk data sekolah yang diperbarui)
+                            try:
+                                df_p.to_sql("data_peserta", conn, if_exists="append", index=False)
+                                success_count += 1
+                            except Exception as e:
+                                st.error(f"Gagal menyimpan data dari file {file.name}. Error: {e}")
+                    else:
+                        st.warning(f"File {file.name} dilewati karena format tidak sesuai (pastikan ada kolom kode_tuo dan ruang).")
+                        
+                conn.close()
+                
+                if success_count > 0:
+                    st.success(f"✅ Berhasil menyimpan/mengupdate data dari {success_count} file sekolah ke Database!")
+
+    with col_pes_2:
+        if st.button("🗑️ Reset Semua Data Peserta"):
             conn = get_conn()
-            c = conn.cursor()
-            
-            for file in f_peserta:
-                df_p = load_file(file)
-                if df_p is not None and 'kode_tuo' in df_p.columns and 'ruang' in df_p.columns:
-                    # Bersihkan kode agar presisi
-                    df_p['kode_tuo'] = df_p['kode_tuo'].astype(str).str.split('.').str[0]
-                    df_p['ruang'] = df_p['ruang'].astype(str).str.split('.').str[0]
-                    
-                    # Ambil daftar kode TUO unik di dalam file yang sedang diunggah
-                    kodes_tuo = df_p['kode_tuo'].unique()
-                    
-                    # Hapus data LAMA untuk kode_tuo tersebut di database (Mekanisme Replace/Update Spesifik)
-                    try:
-                        for k in kodes_tuo:
-                            c.execute("DELETE FROM data_peserta WHERE kode_tuo = ?", (str(k),))
-                        conn.commit()
-                    except sqlite3.OperationalError:
-                        # Jika tabel belum ada di awal penggunaan, abaikan error penghapusan
-                        pass 
-                    
-                    # Simpan data BARU (Hanya menumpuk data sekolah yang diperbarui)
-                    df_p.to_sql("data_peserta", conn, if_exists="append", index=False)
-                    success_count += 1
-                else:
-                    st.warning(f"File {file.name} dilewati karena format tidak sesuai (pastikan ada kolom kode_tuo dan ruang).")
-                    
+            conn.execute("DROP TABLE IF EXISTS data_peserta")
+            conn.commit()
             conn.close()
-            
-            if success_count > 0:
-                st.success(f"✅ Berhasil menyimpan/mengupdate data dari {success_count} file sekolah ke Database!")
+            st.success("✅ Tabel data peserta berhasil dikosongkan.")
+            st.rerun()
 
     st.divider()
 
